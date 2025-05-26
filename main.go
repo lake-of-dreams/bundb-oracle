@@ -29,13 +29,14 @@ type Product struct {
 }
 
 func main() {
-
+	// Initialize connection to podman
 	conn, err := bindings.NewConnection(context.Background(), "unix://"+os.Getenv("XDG_RUNTIME_DIR")+"/podman/podman.sock")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
+	// Check if Database image exists, if not, pull it
 	rawImage := "container-registry.oracle.com/database/free:latest"
 	imageExists, err := images.Exists(conn, rawImage, nil)
 	if err != nil {
@@ -54,6 +55,7 @@ func main() {
 		fmt.Println("Using existing Oracle DB image...")
 	}
 
+	// Check if Oracle DB container exists and is healthy, else spin up a new one
 	containerExists, err := containers.Exists(conn, "oracle-container", nil)
 	if err != nil {
 		fmt.Println(err)
@@ -122,6 +124,7 @@ func main() {
 		fmt.Println("Container started.")
 
 		status := ""
+
 		// Wait for the database to start
 		for status != "healthy" {
 
@@ -146,6 +149,7 @@ func main() {
 		log.Println("Using existing database...")
 	}
 
+	// Initialize connection to the database
 	log.Println("Connecting to database...")
 	sqldb, err := sql.Open("oracle", go_ora.BuildUrl("localhost", 1521, "FREEPDB1", "SYSTEM", "oracle123", nil))
 	if err != nil {
@@ -167,10 +171,8 @@ func main() {
 
 	log.Println("Created table...")
 
-	// Insert a new product
-	log.Println("Inserting data to the table...")
-
 	// Insert multiple products (bulk-insert).
+	log.Println("Inserting data to the table...")
 	p1 := Product{Name: "apple", Price: 5.99}
 	p2 := Product{Name: "orange", Price: 4.99}
 	products := []Product{p1, p2}
@@ -179,10 +181,11 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
 	log.Println("Inserted data to the table...")
 
-	log.Println("Reading data from the table...")
 	// Read all products
+	log.Println("Reading data from the table...")
 	var allProducts []Product
 	err = db.NewSelect().Model(&allProducts).Scan(context.Background(), &allProducts)
 	if err != nil {
@@ -195,8 +198,8 @@ func main() {
 	}
 	log.Println("Read data from the table...")
 
-	log.Println("Updating data in the table...")
 	// Update a product
+	log.Println("Updating data in the table...")
 	allProducts[0].Name = "banana"
 	_, err = db.NewUpdate().Model(&allProducts[0]).Column("name").WherePK().Exec(context.Background())
 	if err != nil {
@@ -204,8 +207,8 @@ func main() {
 	}
 	log.Println("Updated data in the table...")
 
-	log.Println("Deleting data from the table...")
 	// Delete a product
+	log.Println("Deleting data from the table...")
 	_, err = db.NewDelete().Model(&allProducts[1]).WherePK().Exec(context.Background())
 	if err != nil {
 		log.Fatal(err)
